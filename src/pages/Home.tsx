@@ -1,6 +1,6 @@
 import React from 'react';
-import { CarSearch } from '../components/CarSearch';
-import { Header } from '../components/Header';
+import { CarSearch } from '../components/CarSearch.js';
+import { Header } from '../components/Header.js';
 
 export const Home = () => {
   return (
