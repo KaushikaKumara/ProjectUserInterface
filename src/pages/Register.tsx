@@ -7,17 +7,55 @@ export const Register = () => {
         email: '',
         password: '',
         confirmPassword: '',
-        role: 'USER'
+        role: 'CUSTOMER'
     });
 
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
+    const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
+
+    const validateForm = () => {
+        const errors: Record<string, string> = {};
+
+        // Username validation
+        if (formData.username.length < 3) {
+            errors.username = 'Username must be at least 3 characters long';
+        }
+
+        // Email validation
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(formData.email)) {
+            errors.email = 'Please enter a valid email address';
+        }
+
+        // Password validation
+        if (formData.password.length < 6) {
+            errors.password = 'Password must be at least 6 characters long';
+        }
+
+        if (formData.password !== formData.confirmPassword) {
+            errors.confirmPassword = 'Passwords do not match';
+        }
+
+        setValidationErrors(errors);
+        return Object.keys(errors).length === 0;
+    };
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-        setFormData({
-            ...formData,
-            [e.target.name]: e.target.value
-        });
+        const { name, value } = e.target;
+        setFormData(prev => ({
+            ...prev,
+            [name]: value
+        }));
+
+        // Clear validation error when user starts typing
+        if (validationErrors[name]) {
+            setValidationErrors(prev => ({
+                ...prev,
+                [name]: ''
+            }));
+        }
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -25,13 +63,14 @@ export const Register = () => {
         setError('');
         setSuccess('');
 
-        if (formData.password !== formData.confirmPassword) {
-            setError('Passwords do not match');
+        if (!validateForm()) {
             return;
         }
 
+        setIsLoading(true);
+
         try {
-            const response = await fetch('/api/register', {
+            const response = await fetch('http://localhost:8080/api/auth/register', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -44,23 +83,41 @@ export const Register = () => {
                 }),
             });
 
-            const data = await response.json();
-
-            if (!response.ok) {
-                throw new Error(data.message || 'Registration failed');
+            if (response.ok) {
+                const successMessage = await response.text();
+                setSuccess(successMessage);
+                setFormData({
+                    username: '',
+                    email: '',
+                    password: '',
+                    confirmPassword: '',
+                    role: 'CUSTOMER'
+                });
+                return;
             }
 
-            setSuccess('Registration successful!');
-            setFormData({
-                username: '',
-                email: '',
-                password: '',
-                confirmPassword: '',
-                role: 'USER'
-            });
+            const contentType = response.headers.get("content-type");
+            let errorMessage;
+
+            if (contentType?.includes("application/json")) {
+                const data = await response.json();
+                errorMessage = data.message || 'Registration failed. Please try again.';
+            } else {
+                const text = await response.text();
+                errorMessage = text || 'Registration failed. Please try again.';
+            }
+
+            setError(errorMessage);
         } catch (err) {
-            setError(err instanceof Error ? err.message : 'Registration failed');
+            setError(err instanceof Error ? err.message : 'An unexpected error occurred');
+        } finally {
+            setIsLoading(false);
         }
+    };
+
+    const getInputClassName = (fieldName: string) => {
+        return `w-full p-3 pl-12 border rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 
+                ${validationErrors[fieldName] ? 'border-red-500' : 'border-gray-300'}`;
     };
 
     return (
@@ -91,8 +148,11 @@ export const Register = () => {
                                 value={formData.username}
                                 onChange={handleChange}
                                 required
-                                className="w-full p-3 pl-12 border rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
+                                className={getInputClassName('username')}
                             />
+                            {validationErrors.username && (
+                                <p className="mt-1 text-sm text-red-500">{validationErrors.username}</p>
+                            )}
                         </div>
 
                         <div className="relative">
@@ -104,8 +164,11 @@ export const Register = () => {
                                 value={formData.email}
                                 onChange={handleChange}
                                 required
-                                className="w-full p-3 pl-12 border rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
+                                className={getInputClassName('email')}
                             />
+                            {validationErrors.email && (
+                                <p className="mt-1 text-sm text-red-500">{validationErrors.email}</p>
+                            )}
                         </div>
 
                         <div className="relative">
@@ -117,8 +180,11 @@ export const Register = () => {
                                 value={formData.password}
                                 onChange={handleChange}
                                 required
-                                className="w-full p-3 pl-12 border rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
+                                className={getInputClassName('password')}
                             />
+                            {validationErrors.password && (
+                                <p className="mt-1 text-sm text-red-500">{validationErrors.password}</p>
+                            )}
                         </div>
 
                         <div className="relative">
@@ -130,8 +196,11 @@ export const Register = () => {
                                 value={formData.confirmPassword}
                                 onChange={handleChange}
                                 required
-                                className="w-full p-3 pl-12 border rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
+                                className={getInputClassName('confirmPassword')}
                             />
+                            {validationErrors.confirmPassword && (
+                                <p className="mt-1 text-sm text-red-500">{validationErrors.confirmPassword}</p>
+                            )}
                         </div>
 
                         <div>
@@ -141,16 +210,20 @@ export const Register = () => {
                                 onChange={handleChange}
                                 className="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
                             >
-                                <option value="USER">User</option>
-                                <option value="ADMIN">Admin</option>
+                                <option value="CUSTOMER">Customer</option>
+                                <option value="MANAGER">Manager</option>
                             </select>
                         </div>
 
                         <button
                             type="submit"
-                            className="w-full bg-teal-600 text-white p-4 rounded-lg hover:bg-teal-700 transition-colors"
+                            disabled={isLoading}
+                            className={`w-full p-4 rounded-lg text-white transition-colors
+                                ${isLoading
+                                ? 'bg-teal-400 cursor-not-allowed'
+                                : 'bg-teal-600 hover:bg-teal-700'}`}
                         >
-                            Register
+                            {isLoading ? 'Registering...' : 'Register'}
                         </button>
                     </form>
                 </div>

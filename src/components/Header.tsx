@@ -17,6 +17,9 @@ export const Header = () => {
                 <button className="bg-teal-500 text-white px-6 py-2 rounded-lg hover:bg-teal-600 transition-colors">
                     Sign In
                 </button>
+                <button className="bg-white text-teal-600 px-6 py-2 rounded-lg hover:bg-teal-100 transition-colors">
+                    Register
+                </button>
             </div>
         </header>
     );
